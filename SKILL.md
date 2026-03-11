@@ -17,22 +17,27 @@ Pay for AI services using USDC on Base chain. No gas needed.
 - User wants to discover available services
 - User mentions "pay", "buy", "purchase" + AI service
 
-## First-Time Setup (Automatic)
+## First-Time Setup (Agent runs automatically)
 
-**On first use, run the setup script:**
+**On first use of this skill, check if moltspay is installed:**
 
 ```bash
-node scripts/setup.js
+which moltspay || command -v moltspay
 ```
 
-Or if skill was npm installed, it runs automatically.
+**If NOT installed, run setup:**
 
-This will:
-1. Install `moltspay` globally via npm
-2. Initialize wallet with default limits
-3. Show wallet address for funding
+```bash
+npm install -g moltspay && moltspay init --chain base --max-per-tx 2 --max-per-day 10
+```
 
-After setup, use `moltspay` directly (no npx needed).
+**If wallet doesn't exist** (`~/.moltspay/wallet.json`), init it:
+
+```bash
+moltspay init --chain base --max-per-tx 2 --max-per-day 10
+```
+
+After setup, tell user their wallet address and that they need to fund it with USDC on Base.
 
 On first use, automatically initialize the wallet:
 
