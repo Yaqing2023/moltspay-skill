@@ -17,167 +17,105 @@ Pay for AI services using USDC on Base chain. No gas needed.
 - User wants to discover available services
 - User mentions "pay", "buy", "purchase" + AI service
 
-## First-Time Setup (Agent runs automatically)
+## Available Commands
 
-**On first use of this skill, check if moltspay is installed:**
+The `moltspay` CLI provides these commands:
 
-```bash
-which moltspay || command -v moltspay
-```
+| Command | Description |
+|---------|-------------|
+| `moltspay init --chain base` | Create wallet (first time only) |
+| `moltspay status` | Check balance and limits |
+| `moltspay config` | Modify spending limits |
+| `moltspay pay <url> <service>` | Pay for a service |
 
-**If NOT installed, run setup:**
+## Wallet Setup
 
-```bash
-npm install -g moltspay && moltspay init --chain base --max-per-tx 2 --max-per-day 10
-```
-
-**If wallet doesn't exist** (`~/.moltspay/wallet.json`), init it:
-
-```bash
-moltspay init --chain base --max-per-tx 2 --max-per-day 10
-```
+On first use, initialize the wallet with sensible defaults:
+- Chain: Base (mainnet)
+- Max per transaction: $2 USDC
+- Daily limit: $10 USDC
 
 After setup, tell user their wallet address and that they need to fund it with USDC on Base.
 
-On first use, automatically initialize the wallet:
-
-```bash
-moltspay init --chain base --max-per-tx 2 --max-per-day 10
-```
-
-This creates a wallet with:
-- **Chain:** Base (mainnet)
-- **Max per transaction:** $2 USDC
-- **Daily limit:** $10 USDC
-
-Tell user their wallet address and that they need to fund it with USDC on Base.
-
-## Check Wallet Status
-
-```bash
-moltspay status
-```
-
-Shows: wallet address, USDC balance, spending limits, today's usage.
-
 ## Discover Services
 
-When user asks about available services, **run these commands yourself** and present the results nicely:
+### MoltsPay API
 
-### Search on MoltsPay.com
+Query available services:
+- Search: `GET https://moltspay.com/api/search?q=<keyword>`
+- List all: `GET https://moltspay.com/api/services`
 
-```bash
-# Search for services by keyword (run this, don't ask user to)
-curl -s "https://moltspay.com/api/search?q=video" | jq '.services'
+### Provider Discovery
 
-# List all available services
-curl -s "https://moltspay.com/api/services" | jq '.services'
-```
+Providers publish services at `/.well-known/agent-services.json`
 
-### From a Specific Provider
+Example: `https://juai8.com/.well-known/agent-services.json`
 
-```bash
-curl -s https://juai8.com/zen7/services | jq '.services'
-```
-
-**Present results as a table:**
+**Present results as a table to users:**
 
 | Service | Price | Description |
 |---------|-------|-------------|
 | text-to-video | $0.99 | Generate video from text prompt |
 | image-to-video | $1.49 | Animate an image |
 
-Don't show raw JSON to users - format it nicely!
+Never show raw JSON to users - always format nicely.
 
-## Pay for Services
+## Paying for Services
 
-### Zen7 Video Generation (Example)
+Use the `moltspay pay` command with the provider URL and service ID.
 
-**Text to Video ($0.99):**
-```bash
-moltspay pay https://juai8.com/zen7 text-to-video \
-  --prompt "A cat dancing in the rain" \
-  --duration 5
-```
+**Parameters vary by service:**
+- `--prompt` for text-based services
+- `--image` for image-based services
+- `--duration` for video length
 
-**Image to Video ($1.49):**
-```bash
-moltspay pay https://juai8.com/zen7 image-to-video \
-  --image /path/to/image.jpg \
-  --prompt "Make it come alive"
-```
+Example: Zen7 video generation at `https://juai8.com/zen7`
 
-### Generic Service Payment
+## Spending Limits
 
-```bash
-moltspay pay <service-url> <service-id> [--param value ...]
-```
+Users can configure:
+- **max-per-tx**: Maximum per transaction (default $2)
+- **max-per-day**: Daily spending limit (default $10)
 
-## Modify Spending Limits
+Use `moltspay config` to modify limits.
 
-```bash
-# Interactive
-moltspay config
+## Common User Requests
 
-# Direct
-moltspay config --max-per-tx 5 --max-per-day 20
-```
+### "Generate a video of X"
 
-## Common Scenarios
+1. Check wallet status
+2. If not initialized → init first
+3. If balance is 0 → tell user to fund wallet
+4. If funded → pay for text-to-video service
+5. Return video URL to user
 
-### User: "Generate a video of a sunset over mountains"
+### "What's my balance?"
 
-1. Check if wallet exists: `moltspay status`
-2. If not initialized, run init first
-3. If balance is 0, tell user to fund wallet
-4. If funded, run:
-   ```bash
-   moltspay pay https://juai8.com/zen7 text-to-video --prompt "A beautiful sunset over mountains"
-   ```
-5. Return the video URL to user
+Run status check and report balance, limits, and today's usage.
 
-### User: "What's my wallet balance?"
+### "What services are available?"
 
-```bash
-moltspay status
-```
-
-### User: "What services can I buy?"
-
-1. Run the search yourself:
-   ```bash
-   curl -s "https://moltspay.com/api/services" | jq '.services'
-   ```
-
-2. Present as a nice list:
-   > Here are some AI services you can pay for:
-   > 
-   > **Zen7 Video Generation**
-   > - Text to Video: $0.99 - describe a scene, get a video
-   > - Image to Video: $1.49 - animate any image
-   > 
-   > Want me to search for something specific? Or browse all at moltspay.com/services
+Query the MoltsPay API, format results as a clean list with prices.
 
 ## Error Handling
 
 | Error | Solution |
 |-------|----------|
-| "Insufficient balance" | Tell user to fund wallet with USDC on Base |
-| "Exceeds daily limit" | Wait until tomorrow, or increase limit |
-| "Exceeds per-tx limit" | Increase limit with `moltspay config` |
-| "Service not found" | Check service URL and ID |
+| Insufficient balance | Tell user to fund wallet with USDC on Base |
+| Exceeds daily limit | Wait until tomorrow, or increase limit |
+| Exceeds per-tx limit | Increase limit with config command |
+| Service not found | Verify service URL and ID |
 
-## Funding the Wallet
+## Funding Instructions
 
-Tell user:
-1. Copy wallet address from `moltspay status`
+Tell users:
+1. Get wallet address from status command
 2. Send USDC on **Base chain** to that address
-3. Can use Coinbase, MetaMask, or any Base-compatible wallet
-4. No ETH needed for gas (gasless transactions)
+3. Use Coinbase, MetaMask, or any Base-compatible wallet
+4. No ETH needed (gasless transactions)
 
 ## Links
 
-- **Docs:** https://moltspay.com/docs
-- **Services:** https://moltspay.com/services
-- **Discord:** https://discord.gg/QwCJgVBxVK
-- **Zen7 Demo:** https://moltspay.com/demo/livedemo.mp4
+- Docs: https://moltspay.com/docs
+- Services: https://moltspay.com/services
+- GitHub: https://github.com/Yaqing2023/moltspay
