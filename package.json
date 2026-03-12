@@ -1,7 +1,7 @@
 {
   "name": "moltspay-skill",
   "version": "1.0.0",
-  "description": "MoltsPay skill for OpenClaw - pay for AI services with USDC",
+  "description": "MoltsPay skill for OpenClaw - pay for AI services with USDC/USDT (Base + Polygon)",
   "keywords": [
     "openclaw",
     "skill",
