@@ -22,6 +22,7 @@ Pay for AI services using USDC/USDT. Supports multiple chains. No gas needed.
 | Command | Description |
 |---------|-------------|
 | `moltspay init` | Create wallet (works on all chains) |
+| `moltspay fund <amount>` | Fund wallet via QR code (debit card/Apple Pay) |
 | `moltspay status` | Check balance on each chain |
 | `moltspay config` | Modify spending limits |
 | `moltspay services <url>` | List services from a provider or marketplace |
@@ -109,7 +110,23 @@ Use `moltspay config` to modify limits.
 
 ## Funding Your Wallet
 
-Your wallet address works on ALL chains. Fund on whichever chain you'll use:
+### Option 1: QR Code (Easiest - No crypto needed!)
+
+```bash
+# Fund $10 on Base (recommended)
+moltspay fund 10
+
+# Fund $20 on Polygon  
+moltspay fund 20 --chain polygon
+```
+
+Scan QR code → pay with US debit card or Apple Pay → USDC arrives in ~2 minutes.
+
+**No CDP credentials or crypto knowledge needed.** Server handles everything.
+
+### Option 2: Direct Transfer
+
+Your wallet address works on ALL chains. Send USDC from any wallet:
 
 | Chain | Token | How to fund |
 |-------|-------|-------------|
