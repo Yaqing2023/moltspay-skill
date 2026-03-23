@@ -8,7 +8,7 @@ description: |
 
 # MoltsPay Client Skill
 
-Pay for AI services using USDC/USDT. Supports multiple chains. No gas needed.
+Pay for AI services using USDC/USDT. Supports 8 chains. No gas needed.
 
 ## When to Use
 
@@ -21,25 +21,40 @@ Pay for AI services using USDC/USDT. Supports multiple chains. No gas needed.
 
 | Command | Description |
 |---------|-------------|
-| `moltspay init` | Create wallet (works on all chains) |
+| `moltspay init` | Create wallet (works on all EVM chains + Solana) |
 | `moltspay fund <amount>` | Fund wallet via QR code (debit card/Apple Pay) |
-| `moltspay status` | Check balance on each chain |
+| `moltspay status` | Check balance on all chains |
 | `moltspay config` | Modify spending limits |
 | `moltspay services <url>` | List services from a provider or marketplace |
 | `moltspay pay <url> <service> --chain <chain>` | Pay for a service |
 
+## Supported Chains
+
+| Chain | ID | Tokens | Notes |
+|-------|-----|--------|-------|
+| Base | `base` | USDC, USDT | Recommended, lowest fees |
+| Polygon | `polygon` | USDC | Alternative EVM |
+| BNB Chain | `bnb` | USDC, USDT | High liquidity |
+| opBNB | `opbnb` | USDC | BNB L2, very low fees |
+| Solana | `solana` | USDC | Fast, separate wallet |
+| Tempo | `tempo_moderato` | pathUSD | Testnet only |
+| Base Sepolia | `base_sepolia` | USDC | Testnet |
+| BNB Testnet | `bnb_testnet` | USDC | Testnet |
+| Solana Devnet | `solana_devnet` | USDC | Testnet |
+
 ## Wallet Setup
 
-`moltspay init` creates one wallet that works on all supported chains:
+`moltspay init` creates wallets for all chains:
 
-| Chain | Tokens | Notes |
-|-------|--------|-------|
-| Base | USDC, USDT | Recommended, lowest fees |
-| Polygon | USDC | Alternative option |
+**EVM Chains** (Base, Polygon, BNB, opBNB, Tempo):
+- Single address works on all EVM chains
+- Same private key, different networks
 
-Same address, same private key — works everywhere.
+**Solana**:
+- Separate Ed25519 keypair
+- Different address from EVM
 
-After setup, tell user their wallet address and that they need to fund it with USDC on their preferred chain.
+After setup, tell user their wallet addresses and that they need to fund with USDC on their preferred chain.
 
 ## Discover Services
 
@@ -63,8 +78,8 @@ Shows provider name, wallet, supported chains, and all services with prices.
 
 | Service | Price | Chains |
 |---------|-------|--------|
-| text-to-video | $0.99 USDC | Base, Polygon |
-| image-to-video | $1.49 USDC | Base, Polygon |
+| text-to-video | $0.99 USDC | Base, Polygon, BNB |
+| image-to-video | $1.49 USDC | Base, Polygon, BNB |
 
 Never show raw JSON to users - always format nicely.
 
@@ -74,15 +89,19 @@ When paying:
 - If server accepts only one chain → auto-selected
 - If server accepts multiple chains → specify with `--chain`
 
-| Chain | Tokens | Notes |
-|-------|--------|-------|
-| Base | USDC, USDT | Default, lowest fees |
-| Polygon | USDC | Alternative |
-
 Examples:
-```
+```bash
+# Pay on Base (recommended)
 moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --chain base
+
+# Pay on Polygon
 moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --chain polygon
+
+# Pay on BNB
+moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --chain bnb
+
+# Pay on Solana
+moltspay pay https://example.com/service image-gen --prompt "sunset" --chain solana
 ```
 
 ## Paying for Services
@@ -118,25 +137,30 @@ moltspay fund 10
 
 # Fund $20 on Polygon  
 moltspay fund 20 --chain polygon
+
+# Fund $10 on Solana
+moltspay fund 10 --chain solana
 ```
 
-Scan QR code → pay with US debit card or Apple Pay → USDC arrives in ~2 minutes.
+Scan QR code → pay with US debit card or Apple Pay → tokens arrive in ~2 minutes.
 
 **No CDP credentials or crypto knowledge needed.** Server handles everything.
 
 ### Option 2: Direct Transfer
 
-Your wallet address works on ALL chains. Send USDC from any wallet:
+**EVM Chains** - Same address works on Base, Polygon, BNB, opBNB:
+- Send USDC from Coinbase, MetaMask, etc.
+- Make sure you're on the correct network!
 
-| Chain | Token | How to fund |
-|-------|-------|-------------|
-| Base | USDC | Send from Coinbase, MetaMask, etc. |
-| Polygon | USDC | Send from any Polygon-compatible wallet |
+**Solana** - Different address:
+- Send USDC to your Solana wallet address
+- Check with `moltspay status`
 
 ⚠️ **Important:**
-- Balance on Base ≠ Balance on Polygon (they're separate!)
+- Balance on Base ≠ Balance on Polygon ≠ Balance on Solana (separate!)
 - Check balance per chain with `moltspay status`
-- No ETH/MATIC needed (gasless transactions via x402)
+- No ETH/MATIC/SOL needed for gas (gasless transactions via x402)
+- Exception: BNB needs tiny amount of BNB for first approval (~$0.0001)
 
 ## Common User Requests
 
@@ -151,8 +175,8 @@ Your wallet address works on ALL chains. Send USDC from any wallet:
 ### "What's my balance?"
 
 Run `moltspay status` and report:
-- Wallet address
-- Balance on each chain (Base, Polygon)
+- Wallet addresses (EVM + Solana)
+- Balance on each chain
 - Spending limits
 - Today's usage
 
@@ -170,7 +194,25 @@ Format results as a clean table with service names, prices, and providers.
 | Exceeds per-tx limit | Increase limit with `moltspay config` |
 | Service not found | Verify service URL and ID |
 | Chain mismatch | Server doesn't accept specified chain. Check supported chains. |
-| Multi-chain required | Server accepts multiple chains. Specify `--chain base` or `--chain polygon` |
+| Multi-chain required | Server accepts multiple chains. Specify `--chain` |
+| BNB approval needed | First BNB payment needs tiny gas (~$0.0001 BNB) |
+
+## Testnet Faucets
+
+For testing without real money:
+
+```bash
+# Get 1 USDC on Base Sepolia
+moltspay faucet --chain base_sepolia
+
+# Get 1 USDC on BNB Testnet (+ 0.001 tBNB for gas)
+moltspay faucet --chain bnb_testnet
+
+# Get 1 USDC on Solana Devnet
+moltspay faucet --chain solana_devnet
+```
+
+Limit: 1 USDC per address per 24 hours.
 
 ## Links
 

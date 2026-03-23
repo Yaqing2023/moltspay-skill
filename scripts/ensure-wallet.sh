@@ -6,17 +6,14 @@ WALLET_FILE="${MOLTSPAY_DIR}/wallet.json"
 
 if [ ! -f "$WALLET_FILE" ]; then
     echo "🔐 Initializing MoltsPay wallet..."
-    moltspay init --chain base --max-per-tx 2 --max-per-day 10
+    moltspay init --max-per-tx 2 --max-per-day 10
     
     if [ -f "$WALLET_FILE" ]; then
-        ADDRESS=$(cat "$WALLET_FILE" | jq -r '.address')
         echo ""
         echo "✅ Wallet created!"
-        echo "📍 Address: $ADDRESS"
-        echo "⛓️  Chain: Base (mainnet)"
-        echo "💰 Limits: $2/tx, $10/day"
+        moltspay status
         echo ""
-        echo "⚠️  Fund your wallet with USDC on Base to start using services."
+        echo "⚠️  Fund your wallet with USDC on your preferred chain to start using services."
     else
         echo "❌ Failed to initialize wallet"
         exit 1
