@@ -1,5 +1,5 @@
 ---
-name: moltspay_skill
+name: moltspay-skill
 description: |
   Pay for and use AI services via MoltsPay protocol.
   Trigger: User asks to generate video, use a paid service, etc.
@@ -8,7 +8,7 @@ description: |
 
 # MoltsPay Client Skill
 
-Pay for AI services using USDC/USDT. Supports 8 chains. No gas needed.
+Pay for AI services using USDC/USDT across 8 crypto chains (gasless), or in CNY via Alipay (支付宝) — the fiat rail added in MoltsPay 2.0.
 
 ## When to Use
 
@@ -41,6 +41,18 @@ Pay for AI services using USDC/USDT. Supports 8 chains. No gas needed.
 | Base Sepolia | `base_sepolia` | USDC | Testnet |
 | BNB Testnet | `bnb_testnet` | USDC | Testnet |
 | Solana Devnet | `solana_devnet` | USDC | Testnet |
+
+## Fiat Rail — Alipay (new in MoltsPay 2.0)
+
+In addition to the crypto chains above, MoltsPay 2.0 adds a **fiat rail**: pay in **CNY via Alipay (支付宝)**.
+
+| Rail | ID | Currency | Notes |
+|------|-----|----------|-------|
+| Alipay | `alipay` | CNY (yuan) | For services that price in CNY; no crypto balance needed |
+
+- Use it the same way as a chain: `moltspay pay <url> <service> --chain alipay`.
+- A service exposes a CNY price when its provider has the Alipay rail enabled; if a service is crypto-only, pay on one of the crypto chains instead.
+- Settlement is handled by the Alipay rail — the agent does not manage a crypto wallet for these payments.
 
 ## Wallet Setup
 
@@ -102,6 +114,9 @@ moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --cha
 
 # Pay on Solana
 moltspay pay https://example.com/service image-gen --prompt "sunset" --chain solana
+
+# Pay in CNY via Alipay (fiat, no crypto balance needed)
+moltspay pay https://example.com/service text-to-video --prompt "a cat dancing" --chain alipay
 ```
 
 ## Paying for Services
@@ -196,6 +211,7 @@ Format results as a clean table with service names, prices, and providers.
 | Chain mismatch | Server doesn't accept specified chain. Check supported chains. |
 | Multi-chain required | Server accepts multiple chains. Specify `--chain` |
 | BNB approval needed | First BNB payment needs tiny gas (~$0.0001 BNB) |
+| Alipay not accepted | Service is crypto-only. Pay on a crypto chain instead |
 
 ## Testnet Faucets
 
@@ -218,4 +234,4 @@ Limit: 1 USDC per address per 24 hours.
 
 - Docs: https://moltspay.com/docs
 - Marketplace: https://moltspay.com/services
-- GitHub: https://github.com/Yaqing2023/moltspay
+- GitHub: https://github.com/Yaqing2023/moltspay-skill

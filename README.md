@@ -1,11 +1,12 @@
 # MoltsPay Client Skill
 
-Let your AI agent pay for services using USDC. Multi-chain support (Base + Polygon). No gas needed.
+Let your AI agent pay for AI services — in **crypto across 8 chains** or in **CNY via Alipay** (new in MoltsPay 2.0). Gasless on crypto, no human in the loop.
 
 ## Features
 
-- 🔐 **One wallet, all chains** — same address works on Base & Polygon
-- 💸 **Pay for services** with USDC/USDT (gasless via x402)
+- 🔐 **One wallet, all chains** — same EVM address across Base, Polygon, BNB, opBNB, Tempo; separate Solana keypair
+- 💸 **Pay in crypto** with USDC/USDT (gasless via x402)
+- 🇨🇳 **Pay in fiat** — CNY via Alipay (支付宝), new in MoltsPay 2.0
 - 🔍 **Discover services** from marketplace or individual providers
 - 🛡️ **Spending limits** built-in ($2/tx, $10/day default)
 
@@ -22,12 +23,26 @@ After installing, your agent can:
 3. **Discover services:**
    > "What services can I pay for?"
 
-## Supported Chains
+## Supported Rails
 
-| Chain | Tokens | Notes |
-|-------|--------|-------|
-| Base | USDC, USDT | Recommended, lowest fees |
-| Polygon | USDC | Alternative option |
+**Crypto (USDC/USDT, gasless):**
+
+| Chain | ID | Tokens | Notes |
+|-------|-----|--------|-------|
+| Base | `base` | USDC, USDT | Recommended, lowest fees |
+| Polygon | `polygon` | USDC | Alternative EVM |
+| BNB Chain | `bnb` | USDC, USDT | High liquidity |
+| opBNB | `opbnb` | USDC | BNB L2, very low fees |
+| Solana | `solana` | USDC | Fast, separate wallet |
+| Tempo | `tempo_moderato` | pathUSD | Testnet |
+
+Plus testnets: `base_sepolia`, `bnb_testnet`, `solana_devnet`.
+
+**Fiat (new in MoltsPay 2.0):**
+
+| Rail | ID | Currency | Notes |
+|------|-----|----------|-------|
+| Alipay (支付宝) | `alipay` | CNY | Pay services priced in CNY; settled via the Alipay rail |
 
 ## Example Services
 
@@ -51,10 +66,12 @@ npx moltspay services https://juai8.com/zen7
 ## Funding Your Wallet
 
 1. Get your address: `npx moltspay status`
-2. Send USDC on **Base** or **Polygon** to that address
-3. No ETH/MATIC needed (gasless transactions)
+2. Send USDC on the chain you want to use (Base, Polygon, BNB, opBNB, Solana) to that address
+3. No native gas token needed (gasless transactions via x402)
 
 ⚠️ Balance on each chain is separate — fund the chain you want to use!
+
+Paying in CNY via Alipay needs no crypto balance at all — the Alipay rail settles the fiat amount directly.
 
 ## Links
 
