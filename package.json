@@ -1,7 +1,7 @@
 {
   "name": "moltspay-skill",
   "version": "1.0.0",
-  "description": "MoltsPay skill for OpenClaw - pay for AI services with USDC/USDT (8 chains: Base, Polygon, BNB, opBNB, Solana, Tempo) or CNY via Alipay (MoltsPay 2.0)",
+  "description": "MoltsPay skill for OpenClaw - pay for AI services with USDC/USDT (8 chains: Base, Polygon, BNB, opBNB, Solana, Tempo) or CNY via Alipay & WeChat Pay (MoltsPay 2.1)",
   "keywords": [
     "openclaw",
     "skill",

@@ -8,7 +8,7 @@ description: |
 
 # MoltsPay Client Skill
 
-Pay for AI services using USDC/USDT across 8 crypto chains (gasless), or in CNY via Alipay (支付宝) — the fiat rail added in MoltsPay 2.0.
+Pay for AI services using USDC/USDT across 8 crypto chains (gasless), or in CNY via the fiat rails — Alipay (支付宝, MoltsPay 2.0) and WeChat Pay (微信支付, MoltsPay 2.1).
 
 ## When to Use
 
@@ -42,17 +42,29 @@ Pay for AI services using USDC/USDT across 8 crypto chains (gasless), or in CNY 
 | BNB Testnet | `bnb_testnet` | USDC | Testnet |
 | Solana Devnet | `solana_devnet` | USDC | Testnet |
 
-## Fiat Rail — Alipay (new in MoltsPay 2.0)
+## Fiat Rails — Alipay & WeChat (CNY)
 
-In addition to the crypto chains above, MoltsPay 2.0 adds a **fiat rail**: pay in **CNY via Alipay (支付宝)**.
+In addition to the crypto chains above, MoltsPay adds **fiat rails**: pay in **CNY** via Alipay or WeChat Pay. No crypto balance or wallet is needed for either.
 
-| Rail | ID | Currency | Notes |
-|------|-----|----------|-------|
-| Alipay | `alipay` | CNY (yuan) | For services that price in CNY; no crypto balance needed |
+| Rail | `--rail` | Currency | Added | Notes |
+|------|----------|----------|-------|-------|
+| Alipay | `alipay` | CNY (yuan) | 2.0 | Autonomous: alipay-bot pays from the user's bound Alipay wallet |
+| WeChat Pay | `wechat` | CNY (yuan) | 2.1 | **Scan to pay**: a QR is shown, a human scans it with the WeChat app |
 
-- Use it the same way as a chain: `moltspay pay <url> <service> --chain alipay`.
-- A service exposes a CNY price when its provider has the Alipay rail enabled; if a service is crypto-only, pay on one of the crypto chains instead.
-- Settlement is handled by the Alipay rail — the agent does not manage a crypto wallet for these payments.
+- Select a fiat rail with `--rail`: `moltspay pay <url> <service> --rail alipay` or `--rail wechat`.
+- A service exposes a CNY price only when its provider has that rail enabled; if a service is crypto-only, pay on a crypto chain instead.
+- **Both rails finish with a scan + confirm**, then the client polls until the order is paid and the resource is delivered — paying via a fiat rail looks the same as awaiting a crypto settle.
+
+### WeChat Pay flow (scan to pay)
+
+When you run `moltspay pay <url> <service> --rail wechat`:
+
+1. The client requests the service and receives the WeChat `code_url` from the server's 402.
+2. It renders the `code_url` as a **QR code** in the terminal (and prints the link).
+3. **The user opens WeChat and scans the QR to pay** — there is no autonomous WeChat wallet; a human must scan.
+4. The client polls every ~3s until the order is confirmed `SUCCESS`, then returns the service result.
+
+Present the QR to the user and tell them the amount in CNY and to scan with WeChat. In a chat UI (Discord/Feishu), render the `code_url` as an image message instead of terminal ASCII.
 
 ## Wallet Setup
 
@@ -116,7 +128,10 @@ moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --cha
 moltspay pay https://example.com/service image-gen --prompt "sunset" --chain solana
 
 # Pay in CNY via Alipay (fiat, no crypto balance needed)
-moltspay pay https://example.com/service text-to-video --prompt "a cat dancing" --chain alipay
+moltspay pay https://example.com/service text-to-video --prompt "a cat dancing" --rail alipay
+
+# Pay in CNY via WeChat (fiat, scan the QR to pay)
+moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --rail wechat
 ```
 
 ## Paying for Services
@@ -212,6 +227,8 @@ Format results as a clean table with service names, prices, and providers.
 | Multi-chain required | Server accepts multiple chains. Specify `--chain` |
 | BNB approval needed | First BNB payment needs tiny gas (~$0.0001 BNB) |
 | Alipay not accepted | Service is crypto-only. Pay on a crypto chain instead |
+| WeChat not accepted | Service doesn't offer the WeChat rail. Use `--rail alipay` or a crypto chain |
+| WeChat payment timed out | User didn't scan/pay in time. Re-run to get a fresh QR (one code = one order) |
 
 ## Testnet Faucets
 
