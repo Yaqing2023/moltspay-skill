@@ -75,6 +75,12 @@ npx moltspay services https://juai8.com/zen7
 
 Paying in CNY via Alipay or WeChat Pay needs no crypto balance. For WeChat Pay, MoltsPay shows a QR code and waits for the user to scan and pay in WeChat.
 
+### WeChat Pay in Chat UIs
+
+The WeChat Pay rail uses a Native `code_url` QR payload. In a CLI terminal, MoltsPay renders this as an ASCII QR code and also emits a generated PNG image path as `MEDIA: <png-path>`.
+
+For webchat, Discord, Feishu, or other chat UIs, capture the `MEDIA: <png-path>` line and send that PNG through the channel's media/image capability. If you are not using the CLI and only have the `code_url`, generate a QR image from it before sending. Do not rely on terminal ASCII QR in chat messages because wrapping and font rendering can make it hard or impossible to scan. Do not treat the Native `code_url` as a normal HTTPS checkout link unless the provider explicitly returns a browser-safe payment URL.
+
 ## Links
 
 - [MoltsPay Docs](https://moltspay.com/docs)

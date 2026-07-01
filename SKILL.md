@@ -60,11 +60,11 @@ In addition to the crypto chains above, MoltsPay adds **fiat rails**: pay in **C
 When you run `moltspay pay <url> <service> --rail wechat`:
 
 1. The client requests the service and receives the WeChat `code_url` from the server's 402.
-2. It renders the `code_url` as a **QR code** in the terminal (and prints the link).
+2. It renders the `code_url` as a **QR code** in the terminal and emits `MEDIA: <png-path>` for chat surfaces.
 3. **The user opens WeChat and scans the QR to pay** — there is no autonomous WeChat wallet; a human must scan.
 4. The client polls every ~3s until the order is confirmed `SUCCESS`, then returns the service result.
 
-Present the QR to the user and tell them the amount in CNY and to scan with WeChat. In a chat UI (Discord/Feishu), render the `code_url` as an image message instead of terminal ASCII.
+Present the QR to the user and tell them the amount in CNY and to scan with WeChat. In CLI, terminal ASCII QR is acceptable. In webchat, Discord, Feishu, or any chat UI, capture the MoltsPay CLI `MEDIA: <png-path>` line and send that PNG through the channel's media/image capability. If a caller bypasses the CLI and only has the WeChat Native `code_url`, generate a QR image from it before sending. Do not rely on terminal ASCII QR in chat UIs because line wrapping and font rendering can make it hard or impossible to scan. Do not treat the Native `code_url` as a normal HTTPS checkout link; use it as QR payload unless the provider explicitly returns a browser-safe payment URL.
 
 ## Wallet Setup
 
