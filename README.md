@@ -1,12 +1,12 @@
 # MoltsPay Client Skill
 
-Let your AI agent pay for AI services — in **crypto across 8 chains** or in **CNY via Alipay** (new in MoltsPay 2.0). Gasless on crypto, no human in the loop.
+Let your AI agent pay for AI services — in **crypto across 8 chains** or in **CNY via Alipay and WeChat Pay**. Gasless on crypto, no crypto balance needed for fiat rails.
 
 ## Features
 
 - 🔐 **One wallet, all chains** — same EVM address across Base, Polygon, BNB, opBNB, Tempo; separate Solana keypair
 - 💸 **Pay in crypto** with USDC/USDT (gasless via x402)
-- 🇨🇳 **Pay in fiat** — CNY via Alipay (支付宝), new in MoltsPay 2.0
+- 🇨🇳 **Pay in fiat** — CNY via Alipay (支付宝) or WeChat Pay (微信支付)
 - 🔍 **Discover services** from marketplace or individual providers
 - 🛡️ **Spending limits** built-in ($2/tx, $10/day default)
 
@@ -38,11 +38,12 @@ After installing, your agent can:
 
 Plus testnets: `base_sepolia`, `bnb_testnet`, `solana_devnet`.
 
-**Fiat (new in MoltsPay 2.0):**
+**Fiat (CNY):**
 
 | Rail | ID | Currency | Notes |
 |------|-----|----------|-------|
 | Alipay (支付宝) | `alipay` | CNY | Pay services priced in CNY; settled via the Alipay rail |
+| WeChat Pay (微信支付) | `wechat` | CNY | Scan-to-pay QR flow; user scans with WeChat |
 
 ## Example Services
 
@@ -50,6 +51,7 @@ Plus testnets: `base_sepolia`, `bnb_testnet`, `solana_devnet`.
 |---------|-------|---------|
 | Zen7 Text-to-Video | $0.99 | `npx moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --chain base` |
 | Zen7 Image-to-Video | $1.49 | `npx moltspay pay https://juai8.com/zen7 image-to-video --image /path/to/img --chain base` |
+| Zen7 Text-to-Video via WeChat | ¥7.00 | `npx moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --rail wechat` |
 
 ## Discover Services
 
@@ -71,7 +73,7 @@ npx moltspay services https://juai8.com/zen7
 
 ⚠️ Balance on each chain is separate — fund the chain you want to use!
 
-Paying in CNY via Alipay needs no crypto balance at all — the Alipay rail settles the fiat amount directly.
+Paying in CNY via Alipay or WeChat Pay needs no crypto balance. For WeChat Pay, MoltsPay shows a QR code and waits for the user to scan and pay in WeChat.
 
 ## Links
 
