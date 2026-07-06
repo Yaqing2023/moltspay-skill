@@ -1,12 +1,13 @@
 # MoltsPay Client Skill
 
-Let your AI agent pay for AI services — in **crypto across 8 chains** or in **CNY via Alipay and WeChat Pay**. Gasless on crypto, no crypto balance needed for fiat rails.
+Let your AI agent pay for AI services — in **crypto across 8 chains**, in **CNY via Alipay and WeChat Pay**, or **password-free from a prepaid custodial balance**. Gasless on crypto, no crypto balance needed for fiat rails.
 
 ## Features
 
 - 🔐 **One wallet, all chains** — same EVM address across Base, Polygon, BNB, opBNB, Tempo; separate Solana keypair
 - 💸 **Pay in crypto** with USDC/USDT (gasless via x402)
-- 🇨🇳 **Pay in fiat** — CNY via Alipay (支付宝) or WeChat Pay (微信支付)
+- 🇨🇳 **Pay in fiat** — CNY via Alipay (支付宝) or SDK-managed WeChat Pay sessions (微信支付)
+- ⚡ **Pay password-free** (免密支付) — top up a custodial balance once, purchases auto-deduct with no signing or QR
 - 🔍 **Discover services** from marketplace or individual providers
 - 🛡️ **Spending limits** built-in ($2/tx, $10/day default)
 
@@ -43,7 +44,19 @@ Plus testnets: `base_sepolia`, `bnb_testnet`, `solana_devnet`.
 | Rail | ID | Currency | Notes |
 |------|-----|----------|-------|
 | Alipay (支付宝) | `alipay` | CNY | Pay services priced in CNY; settled via the Alipay rail |
-| WeChat Pay (微信支付) | `wechat` | CNY | Scan-to-pay QR flow; user scans with WeChat |
+| WeChat Pay (微信支付) | `wechat` | CNY | SDK-managed scan-to-pay QR session; user scans with WeChat |
+
+**Prepaid balance (password-free / 免密):**
+
+| Rail | ID | Notes |
+|------|-----|-------|
+| Custodial balance | `balance` | Top up once (crypto/Alipay/WeChat), then purchases auto-deduct — no signing or QR per transaction. Idempotent deducts, auto-refund on service failure. |
+
+```bash
+npx moltspay balance query https://juai8.com/zen7                      # balance, limits, today's spend
+npx moltspay balance topup https://juai8.com/zen7 10 --rail alipay --trade-no <no>
+npx moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --rail balance
+```
 
 ## Example Services
 
@@ -51,7 +64,7 @@ Plus testnets: `base_sepolia`, `bnb_testnet`, `solana_devnet`.
 |---------|-------|---------|
 | Zen7 Text-to-Video | $0.99 | `npx moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --chain base` |
 | Zen7 Image-to-Video | $1.49 | `npx moltspay pay https://juai8.com/zen7 image-to-video --image /path/to/img --chain base` |
-| Zen7 Text-to-Video via WeChat | ¥7.00 | `npx moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --rail wechat` |
+| Zen7 Text-to-Video via WeChat | ¥7.00 | `npx moltspay wechat start https://juai8.com/zen7 text-to-video --prompt "..."` |
 
 ## Discover Services
 
@@ -73,13 +86,23 @@ npx moltspay services https://juai8.com/zen7
 
 ⚠️ Balance on each chain is separate — fund the chain you want to use!
 
-Paying in CNY via Alipay or WeChat Pay needs no crypto balance. For WeChat Pay, MoltsPay shows a QR code and waits for the user to scan and pay in WeChat.
+Paying in CNY via Alipay or WeChat Pay needs no crypto balance. For WeChat Pay, MoltsPay creates a recoverable payment session, returns a QR image, polls payment status from the SDK client, and fulfills the service after the user scans and pays in WeChat. The custodial balance rail needs no interaction at all once topped up — purchases auto-deduct.
 
 ### WeChat Pay in Chat UIs
 
-The WeChat Pay rail uses a Native `code_url` QR payload. In a CLI terminal, MoltsPay renders this as an ASCII QR code and also emits a generated PNG image path as `MEDIA: <png-path>`.
+The WeChat Pay rail uses a Native `code_url` QR payload. For chat UIs, prefer the recoverable session commands:
 
-For webchat, Discord, Feishu, or other chat UIs, capture the `MEDIA: <png-path>` line and send that PNG through the channel's media/image capability. If you are not using the CLI and only have the `code_url`, generate a QR image from it before sending. Do not rely on terminal ASCII QR in chat messages because wrapping and font rendering can make it hard or impossible to scan. Do not treat the Native `code_url` as a normal HTTPS checkout link unless the provider explicitly returns a browser-safe payment URL.
+```bash
+npx moltspay wechat start https://juai8.com/zen7 text-to-video --prompt "..."
+npx moltspay wechat status <payment_session_id-or-out_trade_no>
+npx moltspay wechat fulfill <payment_session_id-or-out_trade_no>
+```
+
+`moltspay wechat start` creates and persists a SDK-managed payment session under the MoltsPay config directory, writes a PNG QR image, emits `MEDIA: <png-path>`, and exits immediately. The channel should send that PNG to the user. The SDK/client can then poll and fulfill by `payment_session_id` or `out_trade_no`, so the flow can recover after exec timeout, channel restart, or process restart.
+
+`moltspay pay ... --rail wechat` still exists for local terminal use. It renders ASCII QR, emits `MEDIA: <png-path>`, and blocks until paid or timed out. Do not use that blocking command as the primary integration path for Discord, webchat, Feishu, or other chat channels.
+
+If you are not using the CLI and only have the WeChat Native `code_url`, generate a QR image from it before sending. Do not rely on terminal ASCII QR in chat messages because wrapping and font rendering can make it hard or impossible to scan. Do not treat the Native `code_url` as a normal HTTPS checkout link unless the provider explicitly returns a browser-safe payment URL.
 
 ## Links
 
