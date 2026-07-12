@@ -50,12 +50,12 @@ Plus testnets: `base_sepolia`, `bnb_testnet`, `solana_devnet`.
 
 | Rail | ID | Notes |
 |------|-----|-------|
-| Custodial balance | `balance` | Top up once (crypto/Alipay/WeChat), then purchases auto-deduct — no signing or QR per transaction. Idempotent deducts, auto-refund on service failure. |
+| Custodial balance | `balance` | Scan once to fund, then purchases auto-deduct — no signing or QR per transaction. 2.3: `pay --rail balance` auto-funds via a WeChat top-up pack when short. Idempotent deducts, auto-refund on service failure. |
 
 ```bash
 npx moltspay balance query https://juai8.com/zen7                      # balance, limits, today's spend
-npx moltspay balance topup https://juai8.com/zen7 10 --rail alipay --trade-no <no>
-npx moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --rail balance
+npx moltspay balance topup-pack https://juai8.com/zen7 --pack 20       # fund by scanning a WeChat pack (2.3)
+npx moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --rail balance   # auto-tops-up if short
 ```
 
 ## Example Services

@@ -8,7 +8,7 @@ description: |
 
 # MoltsPay Client Skill
 
-Pay for AI services using USDC/USDT across 8 crypto chains (gasless), in CNY via the fiat rails — Alipay (支付宝, MoltsPay 2.0) and SDK-managed WeChat Pay sessions (微信支付, MoltsPay 2.1) — or password-free from a prepaid custodial balance (免密支付, MoltsPay 2.2).
+Pay for AI services using USDC/USDT across 8 crypto chains (gasless), in CNY via the fiat rails — Alipay (支付宝, MoltsPay 2.0) and SDK-managed WeChat Pay sessions (微信支付, MoltsPay 2.1) — or password-free from a prepaid custodial balance (免密支付, MoltsPay 2.2). Since 2.3 the balance rail can be **funded by WeChat**: `pay --rail balance` scans one top-up pack when the balance is short, then every later purchase is password-free.
 
 ## When to Use
 
@@ -32,9 +32,10 @@ Pay for AI services using USDC/USDT across 8 crypto chains (gasless), in CNY via
 | `moltspay wechat start <url> <service>` | Start a recoverable WeChat QR payment session |
 | `moltspay wechat status <session-or-order>` | Query/recover a WeChat payment session |
 | `moltspay wechat fulfill <session-or-order>` | Idempotently fulfill a paid WeChat session |
-| `moltspay pay <url> <service> --rail balance` | Pay password-free from the prepaid balance |
+| `moltspay pay <url> <service> --rail balance` | Pay password-free; auto-prompts a WeChat top-up pack QR if the balance is short (2.3) |
 | `moltspay balance query <url>` | Show custodial balance, limits, today's spend |
-| `moltspay balance topup <url> <amount> --rail <rail>` | Credit the balance from a settled payment |
+| `moltspay balance topup-pack <url> --pack <amount>` | Fund the balance by scanning a WeChat top-up pack (2.3) |
+| `moltspay balance topup <url> <amount> --rail <rail>` | Credit the balance from an already-settled payment (operator/recovery) |
 | `moltspay balance transactions <url>` | List balance ledger transactions |
 | `moltspay balance set-buyer <id>` | Persist the buyer id used by `--rail balance` |
 
@@ -60,7 +61,7 @@ In addition to the crypto chains above, MoltsPay adds **fiat rails** (pay in **C
 |------|----------|----------|-------|-------|
 | Alipay | `alipay` | CNY (yuan) | 2.0 | Autonomous: alipay-bot pays from the user's bound Alipay wallet |
 | WeChat Pay | `wechat` | CNY (yuan) | 2.1 | **SDK-managed scan to pay**: a QR is shown, SDK session polls and fulfills after human scan |
-| Balance | `balance` | provider currency | 2.2 | **Password-free (免密)**: prepaid custodial balance, auto-deducted per purchase — no signing, no QR |
+| Balance | `balance` | provider currency (CNY when WeChat-funded) | 2.2 / 2.3 | **Password-free (免密)**: prepaid custodial balance, auto-deducted per purchase. 2.3: auto-funds via a WeChat top-up pack (scan once) when short, then no QR thereafter |
 
 - Select Alipay with `--rail alipay`. For WeChat in chat channels, prefer `moltspay wechat start/status/fulfill` over the blocking `moltspay pay --rail wechat` wrapper.
 - A service exposes a CNY price only when its provider has that rail enabled; if a service is crypto-only, pay on a crypto chain instead.
@@ -120,9 +121,9 @@ Do **not** run `moltspay pay ... --rail wechat` or `moltspay wechat start ...` a
 
 If the bot process, exec tool, or channel session is killed after showing a QR, the next step is always `status`/`fulfill` on the saved session or `out_trade_no`, not a new `pay`.
 
-### Balance rail (password-free / 免密支付, 2.2)
+### Balance rail (password-free / 免密支付, 2.2 + 2.3)
 
-The balance rail is a **prepaid custodial balance held by the provider**: the user tops up once (settled via crypto, Alipay, or WeChat), then every purchase auto-deducts from that balance — no signing, no QR, no human interaction per transaction.
+The balance rail is a **prepaid custodial balance held by the provider**. Once funded, every purchase auto-deducts from it — no signing, no QR, no human interaction per transaction. **The model is "scan once to fund, then password-free"**: WeChat only tops up the balance; the balance does the spending.
 
 ```bash
 # One-time: persist the buyer id this client pays as
@@ -131,21 +132,35 @@ moltspay balance set-buyer <buyer-id>
 # Check balance, per-tx/daily limits, and today's spend
 moltspay balance query https://juai8.com/zen7
 
-# Credit the balance from an externally settled payment
-moltspay balance topup https://juai8.com/zen7 10 --rail alipay --trade-no <alipay-trade-no>
-moltspay balance topup https://juai8.com/zen7 10 --rail wechat --out-trade-no <out-trade-no>
-moltspay balance topup https://juai8.com/zen7 10 --rail crypto --tx-hash <hash> --chain base
-
-# Pay password-free
+# Pay password-free. If the balance is short, this auto-prompts a WeChat
+# top-up pack QR (emits MEDIA: <png>), waits for the scan, credits, and
+# completes the purchase automatically. --pack picks the pack; --no-auto-topup
+# fails instead of prompting.
 moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --rail balance
+moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --rail balance --pack 20
+
+# Fund the balance up front by scanning a WeChat top-up pack (create + confirm).
+moltspay balance topup-pack https://juai8.com/zen7 --pack 20
+```
+
+**2.3 auto top-up (the primary funding path):** when a `pay --rail balance` finds an insufficient balance, the SDK creates a buyer-bound WeChat pack order, shows the QR, and credits the **gateway-verified amount** after the user scans — the client never declares the amount. The ledger is 1:1 with WeChat (fen), so a `20.00` pack credits `20.00 CNY`.
+
+Operator/recovery funding (an already-settled payment; not the primary path):
+
+```bash
+moltspay balance topup https://juai8.com/zen7 20 --rail wechat --out-trade-no <out-trade-no>
+moltspay balance topup https://juai8.com/zen7 10 --rail crypto --tx-hash <hash> --chain base
 ```
 
 Key behaviors to rely on:
 
 - The deduction is **atomic and idempotent** on the client's `request_id` — a retried request never double-charges.
 - If the service fails after deduction, the server **auto-refunds** the deduction; the response includes `refunded: true/false`.
-- Deducts respect the account's per-transaction and daily limits; a limit or insufficient-balance failure comes back as a 402 with a reason code. On insufficient balance, offer the user a top-up (via Alipay/WeChat QR or crypto) rather than retrying.
+- Deducts respect per-transaction and daily limits. An **insufficient balance or brand-new account** triggers the 2.3 auto top-up (unless `--no-auto-topup`); a **limit** failure does not (topping up would not help) — report the limit instead.
+- Top-up credits the WeChat-verified `payer_total`, idempotent on `out_trade_no`; a replayed confirm credits at most once.
 - `balance query` shows whether an account exists; an account is created on first top-up.
+
+> **Chat channels (webchat/Discord/Feishu):** the auto top-up **blocks** while waiting for the human scan, exactly like `pay --rail wechat`, so a tool call may time out. Prefer **pre-funding** with `balance topup-pack` (or the recoverable `wechat start/status/fulfill` session then `balance topup --rail wechat --out-trade-no`) so the later `pay --rail balance` is instant and password-free. The pack QR follows the same rules as any WeChat QR: send the `MEDIA:` PNG, do not treat the `code_url` as a browser link, and do not rely on terminal ASCII QR.
 
 ## Wallet Setup
 
@@ -219,8 +234,12 @@ moltspay wechat start https://juai8.com/zen7 text-to-video --prompt "a cat danci
 # Local terminal-only blocking wrapper
 moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --rail wechat
 
-# Pay password-free from the prepaid custodial balance (免密支付)
+# Pay password-free from the prepaid custodial balance (免密支付).
+# Auto-prompts a WeChat top-up pack QR if the balance is short (2.3).
 moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --rail balance
+
+# Fund the balance up front by scanning a WeChat pack (2.3)
+moltspay balance topup-pack https://juai8.com/zen7 --pack 20
 ```
 
 ## Paying for Services
@@ -303,10 +322,16 @@ If the user means the prepaid custodial balance (免密/余额), run `moltspay b
 
 ### "充值 / top up my balance"
 
-1. Ask (or infer) how the top-up is settled: Alipay, WeChat, or crypto.
-2. Collect the settlement reference: Alipay `trade_no`, WeChat `out_trade_no`, or the on-chain `tx-hash` + `--chain`.
-3. Run `moltspay balance topup <provider-url> <amount> --rail <rail> ...` with the matching reference option.
-4. Report the new balance. A replayed top-up (same reference) is safe — the server credits at most once.
+Preferred (2.3): scan a WeChat top-up pack.
+
+1. Run `moltspay balance topup-pack <provider-url> --pack <amount>`.
+2. Send the emitted `MEDIA:` QR PNG to the user and ask them to scan it with WeChat.
+3. The command creates the order, waits for the scan, credits the WeChat-verified amount, and reports the new balance.
+4. Or just run `moltspay pay <url> <service> --rail balance` directly — it auto-prompts the same pack QR when the balance is short.
+
+Operator/recovery (an already-settled payment):
+
+- Collect the settlement reference (WeChat `out_trade_no`, Alipay `trade_no`, or on-chain `tx-hash` + `--chain`) and run `moltspay balance topup <provider-url> <amount> --rail <rail> ...`. A replayed top-up (same reference) is safe — the server credits at most once.
 
 ### "What services are available?"
 
@@ -330,7 +355,7 @@ Format results as a clean table with service names, prices, and providers.
 | User says paid but no result | Resume the saved WeChat session and run `status`, then `fulfill` if paid. Do not create a new order. |
 | QR already shown but command died | Recover by session id or `out_trade_no`; never depend on the killed CLI process. |
 | Balance rail not configured | Provider doesn't offer the balance rail. Pay via crypto or a fiat QR rail instead |
-| Balance deduction failed (insufficient) | Show current balance (`moltspay balance query`) and offer a top-up |
+| Balance deduction failed (insufficient) | 2.3: `pay --rail balance` auto-prompts a WeChat top-up pack QR — show the `MEDIA:` PNG and let it complete. Or pre-fund with `balance topup-pack` |
 | Balance deduction failed (limit) | Per-tx or daily limit hit on the custodial account; report the limit from `balance query` |
 | Service failed after balance deduct | Check the response's `refunded` field; if `refunded: false`, tell the user manual reconciliation is needed |
 
