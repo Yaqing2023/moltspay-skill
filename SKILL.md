@@ -35,7 +35,9 @@ Pay for AI services using USDC/USDT across 8 crypto chains (gasless), in CNY via
 | `moltspay wechat fulfill <session-or-order>` | Idempotently fulfill a paid WeChat session |
 | `moltspay pay <url> <service> --rail balance` | Pay password-free; auto-prompts a WeChat top-up pack QR if the balance is short (2.3) |
 | `moltspay balance query <url>` | Show custodial balance, limits, today's spend |
-| `moltspay balance topup-pack <url> --pack <amount>` | Fund the balance by scanning a WeChat top-up pack (2.3) |
+| `moltspay balance topup-pack <url> --pack <amount>` | Fund the balance by scanning a WeChat top-up pack; blocks until paid (2.3) |
+| `moltspay balance topup-order <url> [--pack]` | Create a top-up order, show the QR, and exit (non-blocking); confirm later (2.5) |
+| `moltspay balance topup-confirm <out_trade_no>` | Confirm a top-up order once and credit if paid (2.5) |
 | `moltspay balance topup <url> <amount> --rail <rail>` | Credit the balance from an already-settled payment (operator/recovery) |
 | `moltspay balance transactions <url>` | List balance ledger transactions |
 | `moltspay balance set-buyer <id>` | Persist the buyer id used by `--rail balance` |
@@ -161,7 +163,37 @@ Key behaviors to rely on:
 - Top-up credits the WeChat-verified `payer_total`, idempotent on `out_trade_no`; a replayed confirm credits at most once.
 - `balance query` shows whether an account exists; an account is created on first top-up.
 
-> **Chat channels (webchat/Discord/Feishu):** the auto top-up **blocks** while waiting for the human scan, exactly like `pay --rail wechat`, so a tool call may time out. Prefer **pre-funding** with `balance topup-pack` (or the recoverable `wechat start/status/fulfill` session then `balance topup --rail wechat --out-trade-no`) so the later `pay --rail balance` is instant and password-free. The pack QR follows the same rules as any WeChat QR: send the `MEDIA:` PNG, do not treat the `code_url` as a browser link, and do not rely on terminal ASCII QR.
+> **Chat channels (webchat/Discord/Feishu):** the blocking auto top-up (`pay --rail balance` default, and `topup-pack`) waits up to ~5 min for the human scan, so a turn-based agent should NOT use it — the tool call times out. Use the **recoverable flow** below instead.
+
+### Balance top-up in a chat channel (recoverable, 2.5)
+
+Mirror the WeChat `start/status/fulfill` pattern. Never block a turn waiting for a scan, and never re-issue a fresh order just because the user says they paid.
+
+```bash
+# 1. Create the order, show the QR, and EXIT immediately (non-blocking).
+#    Or: moltspay pay <url> <svc> --rail balance --topup-mode manual  (same result)
+moltspay balance topup-order https://provider.com --buyer <id>
+#    -> emits MEDIA: <png> and an out_trade_no; persists a recoverable session.
+
+# 2. [end the turn] Send the QR to the user as an image (Discord attachment /
+#    channel media). Tell them to scan with WeChat, then say "已支付" / "paid".
+
+# 3. When the user says paid, confirm ONCE by out_trade_no (server_url is
+#    recovered from the session):
+moltspay balance topup-confirm <out_trade_no>
+#    credited -> continue;  pending -> tell the user it is not confirmed yet, wait.
+
+# 4. Once credited, complete the purchase password-free (no new QR):
+moltspay pay https://provider.com <service> --rail balance --buyer <id>
+```
+
+Rules:
+- On the "已支付"/"paid" signal, run `topup-confirm <out_trade_no>` (recover the order id from your memory or `balance topup-list`). **Do NOT run `topup-order` / `pay` again** — that mints a new QR and loses the association, exactly like the WeChat rail.
+- Render the QR as an **image attachment** (Discord supports this natively); send the `MEDIA:` PNG, do not treat `code_url` as a browser link, do not rely on terminal ASCII QR.
+- `topup-confirm` is idempotent; a replay after crediting is safe.
+- `--topup-mode manual` on `pay` returns `{ status: "topup_required", out_trade_no, code_url, ... }` instead of blocking, so a single `pay` call gives you the QR + order id to confirm later.
+
+For a plain terminal (not an agent), the blocking `pay --rail balance` / `topup-pack` are fine.
 
 ## Wallet Setup
 
@@ -323,7 +355,9 @@ If the user means the prepaid custodial balance (免密/余额), run `moltspay b
 
 ### "充值 / top up my balance"
 
-Preferred (2.3): scan a WeChat top-up pack.
+**In a chat channel (you are an agent): use the recoverable flow** — `balance topup-order` to show the QR and exit, then `balance topup-confirm <out_trade_no>` when the user says paid. See "Balance top-up in a chat channel (recoverable, 2.5)" above. Do NOT use the blocking `topup-pack` in a chat turn.
+
+At a plain terminal (2.3): scan a WeChat top-up pack.
 
 1. Run `moltspay balance topup-pack <provider-url> --pack <amount>`.
 2. Send the emitted `MEDIA:` QR PNG to the user and ask them to scan it with WeChat.
