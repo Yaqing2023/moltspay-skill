@@ -62,17 +62,42 @@ Pay for AI services using USDC/USDT across 8 crypto chains (gasless), in CNY via
 
 In addition to the crypto chains above, MoltsPay adds **fiat rails** (pay in **CNY** via Alipay or WeChat Pay) and a **prepaid balance rail** (top up once, then password-free auto-deduct per purchase). No crypto balance or wallet is needed for any of them.
 
-| Rail | `--rail` | Currency | Added | Notes |
-|------|----------|----------|-------|-------|
-| Alipay | `alipay` | CNY (yuan) | 2.0 | Autonomous: alipay-bot pays from the user's bound Alipay wallet |
-| WeChat Pay | `wechat` | CNY (yuan) | 2.1 | **SDK-managed scan to pay**: a QR is shown, SDK session polls and fulfills after human scan |
-| Balance | `balance` | provider currency (CNY when WeChat-funded) | 2.2 / 2.3 / 2.4 | **Password-free (免密)**: prepaid custodial balance, auto-deducted per purchase. 2.3: auto-funds via a WeChat top-up pack (scan once) when short, then no QR thereafter. 2.4: every deduction is signed by this client's key; the account is anchored to the WeChat payer's openid |
+### ⛔ Rail selection — READ THIS FIRST
 
-- Select Alipay with `--rail alipay`. For WeChat in chat channels, prefer `moltspay wechat start/status/fulfill` over the blocking `moltspay pay --rail wechat` wrapper.
-- A service exposes a CNY price only when its provider has that rail enabled; if a service is crypto-only, pay on a crypto chain instead.
+**If the service offers the `balance` rail, you MUST pay with `--rail balance`. Nothing else.**
+
+**WeChat is a way to LOAD the balance, not a way to buy things.** When the user says「微信支付」/ "pay with WeChat", they are telling you *how they want to put money in* — they are **not** asking you to mint a one-off QR for the item's price.
+
+```
+用户「买视频」/「微信支付」/「付款」
+  → moltspay pay <url> <service> --rail balance          （余额够 → 直接免密扣款，交付，结束）
+  → 余额不足?
+      → moltspay balance topup-order <url>               （出【微信充值码】，退出本回合）
+      → 用户扫码充值 → 说「已支付」
+      → moltspay balance topup-confirm <out_trade_no>    （到账）
+      → moltspay pay <url> <service> --rail balance      （免密扣款，交付）
+  → 之后每一次购买：直接扣款，不再出任何码 ✅
+```
+
+**Never** reach for `--rail wechat` / `wechat start` / `--rail alipay` / `--rail crypto` when `balance` is on offer — that bypasses the whole password-free model and charges the user per item. Check what the service offers with `moltspay services <url>` (or the 402 `accepts[]`) if unsure.
+
+The per-transaction rails below are **fallbacks only** — use them when the provider does **not** offer `balance` at all, or when the user explicitly refuses to top up.
+
+| Rail | `--rail` | Currency | Notes |
+|------|----------|----------|-------|
+| **Balance** | `balance` | provider currency (CNY) | ✅ **DEFAULT — always prefer this.** Password-free (免密): prepaid custodial balance, auto-deducted per purchase. Funded by WeChat (scan once). Every deduction is signed by this client's key (2.4); the account is anchored to the WeChat payer's openid |
+| WeChat Pay | `wechat` | CNY (yuan) | ⚠️ **Fallback only** — per-item scan-to-pay. Do NOT use when `balance` is available; the user ends up scanning for every single purchase |
+| Alipay | `alipay` | CNY (yuan) | ⚠️ Fallback only — autonomous: alipay-bot pays from the user's bound Alipay wallet |
+| Crypto | `crypto` | USDC/USDT | ⚠️ Fallback only — needs a funded crypto wallet |
+
+- A service exposes a rail only when its provider has it enabled; if `balance` is absent from the 402, fall back per the table above.
 - WeChat Pay requires a human scan, but payment lifecycle ownership belongs to the MoltsPay SDK client: it persists the session, polls, and fulfills the service.
 
-### WeChat Pay flow (scan to pay)
+### WeChat Pay flow (scan to pay) — ⚠️ FALLBACK RAIL, NOT THE DEFAULT
+
+> **Do not use this section when the provider offers the `balance` rail.** This is the per-item flow: one QR, one purchase, every time. If `balance` is on offer, the user should scan **once to top up** and then buy password-free — see "Rail selection" above. A user saying「微信支付」is asking for that, not for this.
+>
+> Use this only when the provider has **no** balance rail, or the user explicitly refuses to top up.
 
 For webchat, Discord, Feishu, or any channel where a tool call may time out, use the recoverable WeChat session flow:
 
@@ -267,34 +292,36 @@ Zen7 services are private provider services and may not appear in the public Mol
 
 Never show raw JSON to users - always format nicely.
 
-## Chain Selection (Pay Only)
+## Rail & Chain Selection (Pay Only)
 
-When paying:
+**First: if the service offers `balance`, use `--rail balance`.** See "Rail selection — READ THIS FIRST" above. The examples below cover the fallback rails (provider does not offer `balance`, or the user refuses to top up).
+
+When paying on a crypto chain:
 - If server accepts only one chain → auto-selected
 - If server accepts multiple chains → specify with `--chain`
 
-Examples:
 ```bash
-# Pay on Base (recommended)
+# ✅ DEFAULT — password-free from the prepaid balance. Auto-prompts a WeChat
+#    top-up pack QR if the balance is short (in a chat channel use the
+#    non-blocking topup-order/topup-confirm flow instead).
+moltspay pay https://juai8.com/zen7 buy-video --rail balance
+
+# --- Fallbacks: only when the provider does NOT offer the balance rail ---
+
+# Pay on Base (recommended crypto chain)
 moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --chain base
 
-# Pay on Polygon
+# Pay on Polygon / BNB / Solana
 moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --chain polygon
-
-# Pay on BNB
 moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --chain bnb
-
-# Pay on Solana
 moltspay pay https://example.com/service image-gen --prompt "sunset" --chain solana
 
-# Pay in CNY via Alipay (fiat, no crypto balance needed)
+# Pay in CNY via Alipay (autonomous, no scan)
 moltspay pay https://example.com/service text-to-video --prompt "a cat dancing" --rail alipay
 
-# Pay in CNY via WeChat in a chat/channel flow (fiat, scan the QR to pay)
+# Per-item WeChat scan-to-pay. ⚠️ NOT for a provider that offers `balance` --
+# it charges the user a fresh QR for every single purchase.
 moltspay wechat start https://juai8.com/zen7 text-to-video --prompt "a cat dancing"
-
-# Local terminal-only blocking wrapper
-moltspay pay https://juai8.com/zen7 text-to-video --prompt "a cat dancing" --rail wechat
 
 # Pay password-free from the prepaid custodial balance (免密支付).
 # Auto-prompts a WeChat top-up pack QR if the balance is short (2.3).
@@ -364,13 +391,19 @@ Scan QR code → pay with US debit card or Apple Pay → tokens arrive in ~2 min
 
 ## Common User Requests
 
-### "Generate a video of X"
+### "Buy a video" / "Generate a video of X" / "微信支付"
 
-1. Check wallet status (`moltspay status`)
-2. If not initialized → run `moltspay init`
-3. If balance is 0 → tell user to fund wallet
-4. If funded → pay for text-to-video service with appropriate chain
-5. Return video URL to user
+**All of these mean the same thing: pay from the balance.** The user naming WeChat is telling you how they want to *fund* it, not asking for a per-item QR.
+
+1. `moltspay pay <url> <service> --rail balance` (add `--prompt` for generation services)
+2. **Funded** → it deducts password-free and returns the result. Deliver it. Done.
+3. **Short on balance** (in a chat channel — never block a turn):
+   - `moltspay balance topup-order <url>` → send the `MEDIA:` QR as an image, end the turn, tell the user to scan it with WeChat and say「已支付」
+   - On「已支付」→ `moltspay balance topup-confirm <out_trade_no>` (the SAME order — never mint a new QR)
+   - Credited → rerun step 1. It now completes with no QR.
+4. Return the video URL to the user.
+
+Only if the provider does **not** offer the balance rail: fall back per "Rail selection" above (crypto chain / Alipay / per-item WeChat).
 
 ### "What's my balance?"
 
