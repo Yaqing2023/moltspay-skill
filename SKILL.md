@@ -8,7 +8,7 @@ description: |
 
 # MoltsPay Client Skill
 
-Pay for AI services using USDC/USDT across 8 crypto chains (gasless), in CNY via the fiat rails — Alipay (支付宝, MoltsPay 2.0) and SDK-managed WeChat Pay sessions (微信支付, MoltsPay 2.1) — or password-free from a prepaid custodial balance (免密支付, MoltsPay 2.2). Since 2.3 the balance rail can be **funded by WeChat**: `pay --rail balance` scans one top-up pack when the balance is short, then every later purchase is password-free.
+Pay for AI services using USDC/USDT across 8 crypto chains (gasless), in CNY via the fiat rails — Alipay (支付宝, MoltsPay 2.0) and SDK-managed WeChat Pay sessions (微信支付, MoltsPay 2.1) — or password-free from a prepaid custodial balance (免密支付, MoltsPay 2.2). Since 2.3 the balance rail can be **funded by WeChat**: `pay --rail balance` scans one top-up pack when the balance is short, then every later purchase is password-free. Since 2.4 the balance rail is **authenticated**: the client signs every deduction with a local key, and the account is anchored to the WeChat payer who funded it — see "Balance identity & authentication".
 
 ## When to Use
 
@@ -36,11 +36,13 @@ Pay for AI services using USDC/USDT across 8 crypto chains (gasless), in CNY via
 | `moltspay pay <url> <service> --rail balance` | Pay password-free; auto-prompts a WeChat top-up pack QR if the balance is short (2.3) |
 | `moltspay balance query <url>` | Show custodial balance, limits, today's spend |
 | `moltspay balance topup-pack <url> --pack <amount>` | Fund the balance by scanning a WeChat top-up pack; blocks until paid (2.3) |
-| `moltspay balance topup-order <url> [--pack]` | Create a top-up order, show the QR, and exit (non-blocking); confirm later (2.5) |
-| `moltspay balance topup-confirm <out_trade_no>` | Confirm a top-up order once and credit if paid (2.5) |
+| `moltspay balance topup-order <url> [--pack]` | Create a top-up order, show the QR, and exit (non-blocking); confirm later (2.4) |
+| `moltspay balance topup-confirm <out_trade_no>` | Confirm a top-up order once and credit if paid (2.4) |
 | `moltspay balance topup <url> <amount> --rail <rail>` | Credit the balance from an already-settled payment (operator/recovery) |
 | `moltspay balance transactions <url>` | List balance ledger transactions |
 | `moltspay balance set-buyer <id>` | Persist the buyer id used by `--rail balance` |
+| `moltspay balance whoami [url]` | Show this client's signer address, and its binding to the account (2.4) |
+| `moltspay balance bind <url>` | Bind this client to the account via one WeChat top-up; **blocks until scanned** (2.4) |
 
 ## Supported Chains
 
@@ -64,7 +66,7 @@ In addition to the crypto chains above, MoltsPay adds **fiat rails** (pay in **C
 |------|----------|----------|-------|-------|
 | Alipay | `alipay` | CNY (yuan) | 2.0 | Autonomous: alipay-bot pays from the user's bound Alipay wallet |
 | WeChat Pay | `wechat` | CNY (yuan) | 2.1 | **SDK-managed scan to pay**: a QR is shown, SDK session polls and fulfills after human scan |
-| Balance | `balance` | provider currency (CNY when WeChat-funded) | 2.2 / 2.3 | **Password-free (免密)**: prepaid custodial balance, auto-deducted per purchase. 2.3: auto-funds via a WeChat top-up pack (scan once) when short, then no QR thereafter |
+| Balance | `balance` | provider currency (CNY when WeChat-funded) | 2.2 / 2.3 / 2.4 | **Password-free (免密)**: prepaid custodial balance, auto-deducted per purchase. 2.3: auto-funds via a WeChat top-up pack (scan once) when short, then no QR thereafter. 2.4: every deduction is signed by this client's key; the account is anchored to the WeChat payer's openid |
 
 - Select Alipay with `--rail alipay`. For WeChat in chat channels, prefer `moltspay wechat start/status/fulfill` over the blocking `moltspay pay --rail wechat` wrapper.
 - A service exposes a CNY price only when its provider has that rail enabled; if a service is crypto-only, pay on a crypto chain instead.
@@ -163,9 +165,36 @@ Key behaviors to rely on:
 - Top-up credits the WeChat-verified `payer_total`, idempotent on `out_trade_no`; a replayed confirm credits at most once.
 - `balance query` shows whether an account exists; an account is created on first top-up.
 
-> **Chat channels (webchat/Discord/Feishu):** the blocking auto top-up (`pay --rail balance` default, and `topup-pack`) waits up to ~5 min for the human scan, so a turn-based agent should NOT use it — the tool call times out. Use the **recoverable flow** below instead.
+> **Chat channels (webchat/Discord/Feishu):** the blocking auto top-up (`pay --rail balance` default, and `topup-pack`, and `balance bind`) waits up to ~5 min for the human scan, so a turn-based agent should NOT use it — the tool call times out. Use the **recoverable flow** below instead.
 
-### Balance top-up in a chat channel (recoverable, 2.5)
+### Balance identity & authentication (2.4)
+
+Before 2.4 the `buyer_id` was a bare string: anyone who knew it could spend that balance, and one user writing it two ways became two accounts. 2.4 fixes both. **You mostly do not have to do anything — it is automatic** — but you must understand it to read errors correctly.
+
+**Two halves:**
+
+- **Who the account belongs to = the WeChat payer.** When a top-up is paid, the server reads the payer's `openid` from WeChat and anchors the account to that person. Identity comes from who actually paid, not from the string you passed.
+- **Who may spend it = whoever holds this client's signing key.** The SDK signs every deduction with a key stored at `<configDir>/balance-identity.key` (auto-created, `0600`). The server binds that signer to the account on first use (trust-on-first-use) and checks it on every later deduction. **Signing is automatic — `pay --rail balance` already does it.**
+
+```bash
+# Who am I, and am I bound to this account?
+moltspay balance whoami https://provider.com
+#   -> signer address, the account's bound signer, its WeChat openid
+
+# Bind explicitly by funding once (BLOCKS on the scan — terminal only, never in a chat turn).
+# In a chat channel, just use the recoverable topup-order/topup-confirm flow below:
+# it binds on the same top-up, without blocking.
+moltspay balance bind https://provider.com --pack 20
+```
+
+**Rules:**
+
+- **The key is the money.** Anyone holding `<configDir>/balance-identity.key` can spend every account this client is bound to. Never print it, copy it into a channel, or commit it. Losing it means losing access to the balance (the account is still the user's — re-binding requires the server operator or a fresh account).
+- **One agent, one key, many users.** A shared agent uses a *single* key for all the users it tops up. Accounts stay separate (by openid), but the agent's key can spend all of them — this is the deliberate trade-off of an agent paying on users' behalf, not a bug.
+- Do **not** try to "fix" an auth failure by switching `--buyer` to another id or running `set-buyer`. That does not authenticate you; it just points at a different account (and re-creates the account-splitting problem 2.4 exists to solve). See the error table.
+- A server may run auth in `off` / `shadow` / `enforce` mode. Under `enforce`, an unsigned or wrongly-signed deduction is rejected with **401** — an old, un-upgraded client will fail here and must be upgraded, not worked around.
+
+### Balance top-up in a chat channel (recoverable, 2.4)
 
 Mirror the WeChat `start/status/fulfill` pattern. Never block a turn waiting for a scan, and never re-issue a fresh order just because the user says they paid.
 
@@ -355,7 +384,7 @@ If the user means the prepaid custodial balance (免密/余额), run `moltspay b
 
 ### "充值 / top up my balance"
 
-**In a chat channel (you are an agent): use the recoverable flow** — `balance topup-order` to show the QR and exit, then `balance topup-confirm <out_trade_no>` when the user says paid. See "Balance top-up in a chat channel (recoverable, 2.5)" above. Do NOT use the blocking `topup-pack` in a chat turn.
+**In a chat channel (you are an agent): use the recoverable flow** — `balance topup-order` to show the QR and exit, then `balance topup-confirm <out_trade_no>` when the user says paid. See "Balance top-up in a chat channel (recoverable, 2.4)" above. Do NOT use the blocking `topup-pack` or `balance bind` in a chat turn.
 
 At a plain terminal (2.3): scan a WeChat top-up pack.
 
@@ -407,6 +436,8 @@ Format results as a clean table with service names, prices, and providers.
 | Balance deduction failed (insufficient) | 2.3: `pay --rail balance` auto-prompts a WeChat top-up pack QR — show the `MEDIA:` PNG and let it complete. Or pre-fund with `balance topup-pack` |
 | Balance deduction failed (limit) | Per-tx or daily limit hit on the custodial account; report the limit from `balance query` |
 | Service failed after balance deduct | Check the response's `refunded` field; if `refunded: false`, tell the user manual reconciliation is needed |
+| Balance deduct rejected **401 / unauthorized** (2.4) | This client is not the account's bound signer. Run `balance whoami <url>`: if it says **bound to a DIFFERENT signer**, you are trying to spend someone else's account — stop, do not switch `--buyer` to dodge it. If the client is old/unsigned, it must be upgraded to 2.4. Never "solve" this by picking another buyer id |
+| `whoami` shows no bound signer | The account has never been spent from by a signed client. It binds automatically on the next top-up or first signed deduction — just proceed |
 
 ## Testnet Faucets
 
