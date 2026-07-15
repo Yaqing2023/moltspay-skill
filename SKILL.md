@@ -26,7 +26,7 @@ Pay for AI services using USDC/USDT across 8 crypto chains (gasless), in CNY via
 | `moltspay init` | Create wallet (works on all EVM chains + Solana) |
 | `moltspay fund <amount>` | Fund wallet via QR code (debit card/Apple Pay) |
 | `moltspay status` | Check balance on all chains |
-| `moltspay send <to> <amount>` | Send USDC/USDT out to any address, e.g. an exchange (2.4) |
+| `moltspay transfer <to> <amount>` | Transfer USDC/USDT out to any address, e.g. an exchange (2.4) |
 | `moltspay config` | Modify spending limits |
 | `moltspay services <url>` | List services from a provider or marketplace |
 | `moltspay pay <url> <service> --chain <chain>` | Pay for a service |
@@ -430,18 +430,18 @@ Operator/recovery (an already-settled payment):
 
 - Collect the settlement reference (WeChat `out_trade_no`, Alipay `trade_no`, or on-chain `tx-hash` + `--chain`) and run `moltspay balance topup <provider-url> <amount> --rail <rail> ...`. A replayed top-up (same reference) is safe — the server credits at most once.
 
-### "提现 / send / withdraw USDC to Binance (or any exchange/address)" (2.4)
+### "提现 / transfer / withdraw USDC to Binance (or any exchange/address)" (2.4)
 
-Use `moltspay send` — it moves USDC/USDT out of the wallet to any address.
+Use `moltspay transfer` — it moves USDC/USDT out of the wallet to any address.
 
 1. Get the user's **deposit address** from the exchange, and **which network** the exchange expects for USDC/USDT (Base, Polygon, BNB, …).
-2. Run `moltspay send <deposit-address> <amount> --token USDC --chain <matching-network>` (add `--yes` to skip the prompt for automated flows).
+2. Run `moltspay transfer <deposit-address> <amount> --token USDC --chain <matching-network>` (add `--yes` to skip the prompt for automated flows).
 3. Report the returned tx hash + explorer URL.
 
 Critical rules to tell the user:
 - **Network must match.** The `--chain` you send on must equal the network the exchange shows for that deposit address — sending USDC on Base to a BSC/BEP20 address loses the funds.
-- **Gas is required.** Unlike paying for services (gasless x402), `send` is a normal transfer, so the wallet needs a little native gas: ETH on Base, BNB on BNB Chain, POL on Polygon. If there's no gas, it fails.
-- **EVM only.** Solana `send` isn't supported yet; for Solana funds use a Solana wallet.
+- **Gas is required.** Unlike paying for services (gasless x402), `transfer` is a normal on-chain transfer, so the wallet needs a little native gas: ETH on Base, BNB on BNB Chain, POL on Polygon. If there's no gas, it fails.
+- **EVM only.** Solana `transfer` isn't supported yet; for Solana funds use a Solana wallet.
 - Suggest a **small test amount first**, confirm it lands, then send the rest.
 
 ### "What services are available?"
