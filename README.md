@@ -11,6 +11,55 @@ Let your AI agent pay for AI services — in **crypto across 8 chains**, in **CN
 - 🔍 **Discover services** from marketplace or individual providers
 - 🛡️ **Spending limits** built-in ($2/tx, $10/day default)
 
+## Installation
+
+Install MoltsPay **inside the skill directory**, pinned to an exact version, and
+invoke its local binary. Do not install it globally — this skill handles wallet
+keys and balance-signing keys, so the install step is part of its threat model.
+
+```bash
+npm ci --prefix "$SKILL_DIR" --ignore-scripts --no-audit --no-fund
+"$SKILL_DIR/node_modules/.bin/moltspay" status
+```
+
+This relies on `package.json` pinning `"moltspay": "2.4.0"` (exact — not
+`^2.4.0`, not `latest`) and on `package-lock.json` being committed, which is
+what lets `npm ci` verify package integrity.
+
+Why each part matters:
+
+| Control | Purpose |
+|---------|---------|
+| Exact version + committed lockfile | You are never auto-upgraded into a compromised release |
+| `npm ci` | Verifies integrity hashes against the lockfile |
+| `--ignore-scripts` | Blocks install-time code execution across the whole dependency tree |
+| Local install, explicit path | Contains blast radius; avoids trusting whatever `moltspay` happens to be on `PATH` |
+
+### Alipay rail: one-time manual step
+
+`--ignore-scripts` also skips MoltsPay's own postinstall, which normally
+downloads the `alipay-bot` CLI from Alipay's CDN. Crypto, WeChat Pay, and
+balance rails are unaffected. Before using the **Alipay** rail, run once:
+
+```bash
+npx -y @alipay/agent-payment install-cli
+```
+
+This is deliberate: `alipay-bot` is distributed outside npm, so no lockfile
+hash covers it. Making the download an explicit step keeps it visible rather
+than hidden inside `npm install`. If you skip it, nothing fails silently — the
+runtime `ensureCli` gate stops the Alipay rail at first use and repeats this
+command.
+
+For the full threat model, see
+[`docs/SECURITY.md`](https://github.com/Yaqing2023/moltspay/blob/HEAD/docs/SECURITY.md)
+in the MoltsPay SDK repo (issue 8).
+
+> Examples below assume the skill directory is your working directory. From
+> anywhere else, use the absolute path `"$SKILL_DIR/node_modules/.bin/moltspay"`.
+> Do not substitute `npx moltspay` — that resolves an unpinned version from the
+> registry and bypasses every control in this section.
+
 ## Quick Start
 
 After installing, your agent can:
@@ -53,10 +102,10 @@ Plus testnets: `base_sepolia`, `bnb_testnet`, `solana_devnet`.
 | Custodial balance | `balance` | Scan once to fund, then purchases auto-deduct — no signing or QR per transaction. 2.3: `pay --rail balance` auto-funds via a WeChat top-up pack when short. 2.4: the account is anchored to the WeChat payer's openid and every deduction is signed by this client's key. Idempotent deducts, auto-refund on service failure. |
 
 ```bash
-npx moltspay balance query https://juai8.com/zen7                      # balance, limits, today's spend
-npx moltspay balance topup-pack https://juai8.com/zen7 --pack 20       # fund by scanning a WeChat pack (2.3)
-npx moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --rail balance   # auto-tops-up if short
-npx moltspay balance whoami https://juai8.com/zen7                     # signer identity + account binding (2.4)
+./node_modules/.bin/moltspay balance query https://juai8.com/zen7                      # balance, limits, today's spend
+./node_modules/.bin/moltspay balance topup-pack https://juai8.com/zen7 --pack 20       # fund by scanning a WeChat pack (2.3)
+./node_modules/.bin/moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --rail balance   # auto-tops-up if short
+./node_modules/.bin/moltspay balance whoami https://juai8.com/zen7                     # signer identity + account binding (2.4)
 ```
 
 > **The balance key is the money (2.4).** The client signs each deduction with a key at `<configDir>/balance-identity.key` (auto-created, `0600`). Whoever holds it can spend every account this client is bound to — protect it like a private key. Under a server running `auth_mode: enforce`, an unsigned or wrongly-signed deduction is rejected with 401.
@@ -65,25 +114,25 @@ npx moltspay balance whoami https://juai8.com/zen7                     # signer 
 
 | Service | Price | Command |
 |---------|-------|---------|
-| Zen7 Text-to-Video | $0.99 | `npx moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --chain base` |
-| Zen7 Image-to-Video | $1.49 | `npx moltspay pay https://juai8.com/zen7 image-to-video --image /path/to/img --chain base` |
-| Zen7 Text-to-Video via WeChat | ¥7.00 | `npx moltspay wechat start https://juai8.com/zen7 text-to-video --prompt "..."` |
+| Zen7 Text-to-Video | $0.99 | `./node_modules/.bin/moltspay pay https://juai8.com/zen7 text-to-video --prompt "..." --chain base` |
+| Zen7 Image-to-Video | $1.49 | `./node_modules/.bin/moltspay pay https://juai8.com/zen7 image-to-video --image /path/to/img --chain base` |
+| Zen7 Text-to-Video via WeChat | ¥7.00 | `./node_modules/.bin/moltspay wechat start https://juai8.com/zen7 text-to-video --prompt "..."` |
 
 ## Discover Services
 
 List all services on marketplace:
 ```bash
-npx moltspay services https://moltspay.com
+./node_modules/.bin/moltspay services https://moltspay.com
 ```
 
 List services from a specific provider:
 ```bash
-npx moltspay services https://juai8.com/zen7
+./node_modules/.bin/moltspay services https://juai8.com/zen7
 ```
 
 ## Funding Your Wallet
 
-1. Get your address: `npx moltspay status`
+1. Get your address: `./node_modules/.bin/moltspay status`
 2. Send USDC on the chain you want to use (Base, Polygon, BNB, opBNB, Solana) to that address
 3. No native gas token needed (gasless transactions via x402)
 
@@ -96,9 +145,9 @@ Paying in CNY via Alipay or WeChat Pay needs no crypto balance. For WeChat Pay, 
 The WeChat Pay rail uses a Native `code_url` QR payload. For chat UIs, prefer the recoverable session commands:
 
 ```bash
-npx moltspay wechat start https://juai8.com/zen7 text-to-video --prompt "..."
-npx moltspay wechat status <payment_session_id-or-out_trade_no>
-npx moltspay wechat fulfill <payment_session_id-or-out_trade_no>
+./node_modules/.bin/moltspay wechat start https://juai8.com/zen7 text-to-video --prompt "..."
+./node_modules/.bin/moltspay wechat status <payment_session_id-or-out_trade_no>
+./node_modules/.bin/moltspay wechat fulfill <payment_session_id-or-out_trade_no>
 ```
 
 `moltspay wechat start` creates and persists a SDK-managed payment session under the MoltsPay config directory, writes a PNG QR image, emits `MEDIA: <png-path>`, and exits immediately. The channel should send that PNG to the user. The SDK/client can then poll and fulfill by `payment_session_id` or `out_trade_no`, so the flow can recover after exec timeout, channel restart, or process restart.

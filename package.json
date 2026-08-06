@@ -1,6 +1,7 @@
 {
   "name": "moltspay-skill",
   "version": "2.4.0",
+  "private": true,
   "description": "MoltsPay skill for OpenClaw - pay for AI services with USDC/USDT (8 chains: Base, Polygon, BNB, opBNB, Solana, Tempo), CNY via Alipay & WeChat Pay (MoltsPay 2.0/2.1), or password-free from a signed, WeChat-anchored prepaid custodial balance (MoltsPay 2.2/2.3/2.4)",
   "keywords": [
     "openclaw",
@@ -16,9 +17,11 @@
     "type": "git",
     "url": "https://github.com/Yaqing2023/moltspay-skill"
   },
+  "dependencies": {
+    "moltspay": "2.4.0"
+  },
   "scripts": {
-    "setup": "node scripts/setup.js",
-    "postinstall": "node scripts/setup.js"
+    "setup": "node scripts/setup.js"
   },
   "openclaw": {
     "skill": true,
