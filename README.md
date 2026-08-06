@@ -22,8 +22,8 @@ npm ci --prefix "$SKILL_DIR" --ignore-scripts --no-audit --no-fund
 "$SKILL_DIR/node_modules/.bin/moltspay" status
 ```
 
-This relies on `package.json` pinning `"moltspay": "2.4.0"` (exact — not
-`^2.4.0`, not `latest`) and on `package-lock.json` being committed, which is
+This relies on `package.json` pinning `"moltspay": "2.4.1"` (exact — not
+`^2.4.1`, not `latest`) and on `package-lock.json` being committed, which is
 what lets `npm ci` verify package integrity.
 
 Why each part matters:
@@ -52,7 +52,7 @@ runtime `ensureCli` gate stops the Alipay rail at first use and repeats this
 command.
 
 For the full threat model, see
-[`docs/SECURITY.md`](https://github.com/Yaqing2023/moltspay/blob/HEAD/docs/SECURITY.md)
+[`docs/SECURITY.md`](https://github.com/Yaqing2023/moltspay/blob/v2.4.1/docs/SECURITY.md)
 in the MoltsPay SDK repo (issue 8).
 
 > Examples below assume the skill directory is your working directory. From
