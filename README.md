@@ -1,6 +1,6 @@
 # MoltsPay Client Skill
 
-Let your AI agent pay for AI services — in **crypto across 8 chains**, in **CNY via Alipay and WeChat Pay**, or **password-free from a prepaid custodial balance**. Gasless on crypto, no crypto balance needed for fiat rails.
+Let your AI agent pay for AI services — in **crypto across 5 mainnets** (plus 4 testnets), in **CNY via Alipay and WeChat Pay**, or **password-free from a prepaid custodial balance**. Gasless on crypto, no crypto balance needed for fiat rails.
 
 ## Features
 
@@ -52,7 +52,7 @@ runtime `ensureCli` gate stops the Alipay rail at first use and repeats this
 command.
 
 For the full threat model, see
-[`docs/SECURITY.md`](https://github.com/Yaqing2023/moltspay/blob/v2.4.1/docs/SECURITY.md)
+[`docs/SECURITY.md`](https://github.com/Yaqing2023/moltspay/blob/fdccf6e36cc7fd7f34ab12c703d151d180fb27af/docs/SECURITY.md)
 in the MoltsPay SDK repo (issue 8).
 
 > Examples below assume the skill directory is your working directory. From
@@ -156,6 +156,17 @@ The WeChat Pay rail uses a Native `code_url` QR payload. For chat UIs, prefer th
 
 If you are not using the CLI and only have the WeChat Native `code_url`, generate a QR image from it before sending. Do not rely on terminal ASCII QR in chat messages because wrapping and font rendering can make it hard or impossible to scan. Do not treat the Native `code_url` as a normal HTTPS checkout link unless the provider explicitly returns a browser-safe payment URL.
 
+## Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/setup.js` | Cross-platform (Windows/macOS/Linux) setup: pinned `npm ci --ignore-scripts` install, then wallet init with the default $2/tx, $10/day limits. Also runnable as `npm run setup`. |
+| `scripts/setup.sh` | POSIX-shell equivalent of `setup.js`, for environments where you'd rather not go through npm scripts. |
+| `scripts/ensure-wallet.sh` | Idempotent wallet check: initializes `~/.moltspay/wallet.json` if missing, otherwise prints `status`. Assumes dependencies are already installed. |
+
+All three refuse to run if `node_modules/.bin/moltspay` is absent, rather than
+falling back to whatever `moltspay` is on `PATH`.
+
 ## Links
 
 - [MoltsPay Docs](https://moltspay.com/docs)
@@ -164,4 +175,5 @@ If you are not using the CLI and only have the WeChat Native `code_url`, generat
 
 ## License
 
-MIT
+MIT-0 (MIT No Attribution) — see [`LICENSE`](./LICENSE). This is the license
+ClawHub applies to every published skill; there is no per-skill override.
