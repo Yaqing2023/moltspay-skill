@@ -1,7 +1,7 @@
 ---
 name: moltspay-skill
 description: Pay for AI services via the MoltsPay protocol — USDC/USDT on 5 crypto chains (gasless x402), CNY via Alipay and WeChat Pay, or password-free from a prepaid custodial balance. Use when the user asks to generate a video or image, buy or pay for any AI service, check a wallet or prepaid balance, or top up. Auto-discovers services from /.well-known/agent-services.json.
-version: 2.4.1
+version: 2.4.2
 metadata:
   openclaw:
     emoji: 💸
@@ -10,7 +10,7 @@ metadata:
       bins: [node, npm]
     install:
       - kind: node
-        package: moltspay@2.4.1
+        package: moltspay@2.4.2
         bins: [moltspay]
 ---
 
@@ -26,7 +26,7 @@ this skill's directory as the working directory**. Install first:
 ```bash
 cd <the directory containing this SKILL.md>
 npm ci --ignore-scripts --no-audit --no-fund
-./node_modules/.bin/moltspay --version     # must print 2.4.1
+./node_modules/.bin/moltspay --version     # must print 2.4.2
 ```
 
 **Never run a bare `moltspay`, and never `npx moltspay`.** Both resolve an
@@ -76,7 +76,7 @@ need no extra step.
 | `./node_modules/.bin/moltspay balance topup-pack <url> --pack <amount>` | Fund the balance by scanning a WeChat top-up pack; blocks until paid (2.3) |
 | `./node_modules/.bin/moltspay balance topup-order <url> [--pack]` | Create a top-up order, show the QR, and exit (non-blocking); confirm later (2.4) |
 | `./node_modules/.bin/moltspay balance topup-confirm <out_trade_no>` | Confirm a top-up order once and credit if paid (2.4) |
-| `./node_modules/.bin/moltspay balance topup <url> <amount> --rail <rail>` | Credit the balance from an already-settled payment (operator/recovery) |
+| `./node_modules/.bin/moltspay balance topup <url> <amount> --rail <rail>` | ⛔ **Do not use** — server-side operator credential required since MoltsPay 2.4.2; this CLI cannot send it and the call returns `401`. Use `topup-order` + `topup-confirm` |
 | `./node_modules/.bin/moltspay balance transactions <url>` | List balance ledger transactions |
 | `./node_modules/.bin/moltspay balance set-buyer <id>` | Persist the buyer id used by `--rail balance` |
 | `./node_modules/.bin/moltspay balance whoami [url]` | Show this client's signer address, and its binding to the account (2.4) |
@@ -215,7 +215,28 @@ The balance rail is a **prepaid custodial balance held by the provider**. Once f
 
 Operator/recovery funding (an already-settled payment; not the primary path):
 
+> ⛔ **`balance topup` is unavailable to this skill as of MoltsPay 2.4.2.** The
+> server's `POST /balance/topup` now requires an operator credential (it credits a
+> balance with no per-user signature, so it is operator-scoped), and this CLI has
+> no way to send one — the call returns `401` against any 2.4.2+ server, and
+> `503` if that server has no operator key configured at all. Recovering a
+> settled-but-uncredited payment is now a **server-operator** task, run from the
+> provider's side:
+>
+> ```bash
+> curl -X POST https://provider.example.com/balance/topup \
+>   -H "Authorization: Bearer $MOLTSPAY_BALANCE_OPERATOR_KEY" \
+>   -H 'Content-Type: application/json' \
+>   -d '{"buyer_id":"<id>","rail":"wechat","amount":"20.00","out_trade_no":"<out-trade-no>"}'
+> ```
+>
+> Do not attempt the CLI form below; it is kept only to explain what the operator
+> path does. For a user whose top-up did not land, run `balance topup-confirm
+> <out_trade_no>` (idempotent, no credential needed) — that is the recovery path
+> this skill actually owns.
+
 ```bash
+# Operator-side only — 401 from this skill. See the note above.
 ./node_modules/.bin/moltspay balance topup https://juai8.com/zen7 20 --rail wechat --out-trade-no <out-trade-no>
 ./node_modules/.bin/moltspay balance topup https://juai8.com/zen7 10 --rail crypto --tx-hash <hash> --chain base
 ```

@@ -22,9 +22,15 @@ npm ci --prefix "$SKILL_DIR" --ignore-scripts --no-audit --no-fund
 "$SKILL_DIR/node_modules/.bin/moltspay" status
 ```
 
-This relies on `package.json` pinning `"moltspay": "2.4.1"` (exact — not
-`^2.4.1`, not `latest`) and on `package-lock.json` being committed, which is
+This relies on `package.json` pinning `"moltspay": "2.4.2"` (exact — not
+`^2.4.2`, not `latest`) and on `package-lock.json` being committed, which is
 what lets `npm ci` verify package integrity.
+
+**Do not pin below 2.4.2.** MoltsPay 2.4.1 and earlier expose the balance rail's
+credit/reverse endpoints without authentication — see the 2.4.2 entry in
+[`CHANGELOG.md`](https://github.com/Yaqing2023/moltspay/blob/v2.4.2/CHANGELOG.md#242---2026-08-11).
+That is a server-side hole, so a client-only skill user is not directly exposed,
+but the pinned version is also what a provider gets when they follow this skill.
 
 Why each part matters:
 
@@ -52,7 +58,7 @@ runtime `ensureCli` gate stops the Alipay rail at first use and repeats this
 command.
 
 For the full threat model, see
-[`docs/SECURITY.md`](https://github.com/Yaqing2023/moltspay/blob/fdccf6e36cc7fd7f34ab12c703d151d180fb27af/docs/SECURITY.md)
+[`docs/SECURITY.md`](https://github.com/Yaqing2023/moltspay/blob/v2.4.2/docs/SECURITY.md)
 in the MoltsPay SDK repo (issue 8).
 
 > Examples below assume the skill directory is your working directory. From
